@@ -27,6 +27,7 @@ type tweet struct {
 }
 
 var users []user
+var tweets []tweet
 
 func main() {
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
@@ -83,6 +84,22 @@ func (app *application) routes() http.Handler {
 		users = append(users, newUser)
 
 		app.infoLogger.Println(newUser.Avatar, newUser.Username)
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+
+	mux.Post("/tweets", func(w http.ResponseWriter, r *http.Request) {
+		var newTweet tweet
+
+		dec := json.NewDecoder(r.Body)
+		err := dec.Decode(&newTweet)
+		if err != nil {
+			app.errorLogger.Println(err)
+		}
+
+		tweets = append(tweets, newTweet)
+		app.infoLogger.Println(tweets)
 
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
