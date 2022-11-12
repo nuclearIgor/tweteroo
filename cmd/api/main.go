@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 type application struct {
@@ -28,8 +29,8 @@ type tweet struct {
 	Avatar   string `json:"avatar,omitempty"`
 }
 
-var users []user
-var tweets []tweet
+//var users []user
+//var tweets []tweet
 
 func main() {
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
@@ -64,6 +65,8 @@ func (app *application) routes() http.Handler {
 
 	var out []byte
 	out = []byte("ola")
+
+	users, tweets := app.mockData()
 
 	mux.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -111,10 +114,37 @@ func (app *application) routes() http.Handler {
 
 	mux.Get("/tweets", func(w http.ResponseWriter, r *http.Request) {
 
-		var lastTen []tweet
-
+		app.infoLogger.Println(r.URL.Query().Get("page"))
 		var payload []byte
 		var _ error
+
+		var lastTen []tweet
+
+		if r.URL.Query().Get("page") != "" {
+			page, err := strconv.Atoi(r.URL.Query().Get("page"))
+			if err != nil {
+				app.errorLogger.Println(err)
+			}
+
+			for i := 0; i < 10; i++ {
+				if (page*10)-(i+1) < len(tweets) {
+					lastTen = append(lastTen, tweets[(page*10)-(i+1)])
+				}
+			}
+
+			if len(lastTen) == 0 {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("Informe uma página válida!"))
+				return
+			}
+
+			payload, _ = json.MarshalIndent(lastTen, "", "\t")
+
+			w.WriteHeader(http.StatusOK)
+			w.Write(payload)
+
+			return
+		}
 
 		if len(tweets) > 10 {
 			for i := len(tweets) - 1; i > len(tweets)-11; i-- {
@@ -131,7 +161,7 @@ func (app *application) routes() http.Handler {
 	})
 
 	mux.With(UsernameCtx).Get("/tweets/{username}", func(w http.ResponseWriter, r *http.Request) {
-		app.infoLogger.Println(r.Context().Value("username"))
+		//app.infoLogger.Println(r.Context().Value("username"))
 
 		username := r.Context().Value("username")
 
@@ -169,4 +199,22 @@ func UsernameCtx(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), "username", userName)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func (app *application) mockData() ([]user, []tweet) {
+	users := []user{{
+		Username: "igor",
+		Avatar:   "lorem ipsum",
+	}}
+
+	var tweets []tweet
+
+	for i := 0; i < 22; i++ {
+		tweets = append(tweets, tweet{
+			Username: "igor",
+			Tweet:    strconv.Itoa(i),
+		})
+	}
+
+	return users, tweets
 }
