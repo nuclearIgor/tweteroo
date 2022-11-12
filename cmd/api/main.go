@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi/v5"
@@ -129,5 +130,43 @@ func (app *application) routes() http.Handler {
 
 	})
 
+	mux.With(UsernameCtx).Get("/tweets/{username}", func(w http.ResponseWriter, r *http.Request) {
+		app.infoLogger.Println(r.Context().Value("username"))
+
+		username := r.Context().Value("username")
+
+		var t []tweet
+
+		for i := 0; i < len(tweets); i++ {
+			if tweets[i].Username == username {
+				t = append(t, tweets[i])
+			}
+		}
+
+		if len(t) == 0 {
+
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("no matching user"))
+			return
+		}
+
+		app.infoLogger.Println(len(t))
+
+		payload, _ := json.MarshalIndent(t, "", "\t")
+
+		w.WriteHeader(http.StatusOK)
+		w.Write(payload)
+
+	})
+
 	return mux
+}
+
+func UsernameCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userName := chi.URLParam(r, "username")
+
+		ctx := context.WithValue(r.Context(), "username", userName)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
