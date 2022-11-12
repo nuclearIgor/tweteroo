@@ -24,6 +24,7 @@ type user struct {
 type tweet struct {
 	Username string `json:"username"`
 	Tweet    string `json:"tweet"`
+	Avatar   string `json:"avatar,omitempty"`
 }
 
 var users []user
@@ -98,11 +99,33 @@ func (app *application) routes() http.Handler {
 			app.errorLogger.Println(err)
 		}
 
+		newTweet.Avatar = users[len(users)-1].Avatar
+
 		tweets = append(tweets, newTweet)
 		app.infoLogger.Println(tweets)
 
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
+	})
+
+	mux.Get("/tweets", func(w http.ResponseWriter, r *http.Request) {
+
+		var lastTen []tweet
+
+		var payload []byte
+		var _ error
+
+		if len(tweets) > 10 {
+			for i := len(tweets) - 1; i > len(tweets)-11; i-- {
+				lastTen = append(lastTen, tweets[i])
+			}
+			payload, _ = json.MarshalIndent(lastTen, "", "\t")
+		} else {
+			payload, _ = json.MarshalIndent(tweets, "", "\t")
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write(payload)
 
 	})
 
